@@ -4,4 +4,4 @@
 
 `cargo run --bin dayX` 
 or
-`cargo watch -x 'run --bin dayX'``
+`cargo watch -x 'run --bin dayX'`
