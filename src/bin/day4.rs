@@ -7,6 +7,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let contents = binding.trim().lines();
 
     let mut result1 = 0;
+    let mut result2 = 0;
 
     for line in contents {
         let [range1, range2] = match line.split(',').collect::<Vec<&str>>()[..] {
@@ -23,6 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             [a, b] => [a, b],
             _ => [0, 0],
         };
+
         if r1x <= r2x && r1y >= r2y {
             println!("range2 fits in range1??");
             result1 += 1;
@@ -32,10 +34,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         } else {
             println!("NEXT!");
         }
+        let concatenated_ranges = (r1x..=r1y).chain(r2x..=r2y);
+        let mut concatenated_ranges_vec = concatenated_ranges.clone().collect::<Vec<_>>();
+        concatenated_ranges_vec.sort();
+        concatenated_ranges_vec.dedup();
+
+        println!("{:?}", concatenated_ranges.size_hint());
+        println!("{:?}", concatenated_ranges_vec);
+        println!("{:?}", concatenated_ranges_vec.len());
+        if concatenated_ranges.size_hint().0 != concatenated_ranges_vec.len() {
+            result2 += 1
+        };
+
         println!();
     }
 
     println!("{}", result1);
+    println!("{}", result2);
 
     Ok(())
 }
