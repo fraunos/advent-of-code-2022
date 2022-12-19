@@ -1,6 +1,6 @@
 # Advent of Code 2022
 
-This code sucks. This is just me trying out and learning Rust.
+This is just me trying out and learning Rust.
 
 ## Running
 
