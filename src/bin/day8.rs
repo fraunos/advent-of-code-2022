@@ -38,10 +38,18 @@ struct Visibility {
 }
 
 #[derive(Debug, Clone, Copy)]
+enum ProcessingColorCode {
+    Red = 31,
+    Blue = 34,
+    None = 0,
+}
+
+#[derive(Debug, Clone, Copy)]
 struct Tree {
     height: isize,
     visible: Visibility,
-    processing: bool,
+    processing: ProcessingColorCode,
+    scenic_score: i32,
 }
 
 static DEBUG: LazyLock<bool> = LazyLock::new(|| match env::args().nth(1) {
@@ -64,38 +72,42 @@ fn main() -> Result<(), Box<dyn Error>> {
                         left: false,
                         right: false,
                     },
-                    processing: false,
+                    processing: ProcessingColorCode::None,
+                    scenic_score: 1,
                 })
                 .collect::<Vec<Tree>>()
         })
         .collect::<Vec<Vec<Tree>>>();
     let forest_len_range = 0..forest.len();
-    scan_forest_side(
-        &mut forest,
-        Direction::Bottom,
-        &forest_len_range.clone().collect::<Vec<usize>>(),
-        &forest_len_range.clone().rev().collect::<Vec<usize>>(),
-    );
-    scan_forest_side(
-        &mut forest,
-        Direction::Top,
-        &forest_len_range.clone().collect::<Vec<usize>>(),
-        &forest_len_range.clone().collect::<Vec<usize>>(),
-    );
-    scan_forest_side(
-        &mut forest,
-        Direction::Right,
-        &forest_len_range.clone().collect::<Vec<usize>>(),
-        &forest_len_range.clone().rev().collect::<Vec<usize>>(),
-    );
-    scan_forest_side(
-        &mut forest,
-        Direction::Left,
-        &forest_len_range.clone().collect::<Vec<usize>>(),
-        &forest_len_range.clone().collect::<Vec<usize>>(),
-    );
+    // scan_forest_side(
+    //     &mut forest,
+    //     Direction::Bottom,
+    //     &forest_len_range.clone().collect::<Vec<usize>>(),
+    //     &forest_len_range.clone().rev().collect::<Vec<usize>>(),
+    // );
+    // scan_forest_side(
+    //     &mut forest,
+    //     Direction::Top,
+    //     &forest_len_range.clone().collect::<Vec<usize>>(),
+    //     &forest_len_range.clone().collect::<Vec<usize>>(),
+    // );
+    // scan_forest_side(
+    //     &mut forest,
+    //     Direction::Right,
+    //     &forest_len_range.clone().collect::<Vec<usize>>(),
+    //     &forest_len_range.clone().rev().collect::<Vec<usize>>(),
+    // );
+    // scan_forest_side(
+    //     &mut forest,
+    //     Direction::Left,
+    //     &forest_len_range.clone().collect::<Vec<usize>>(),
+    //     &forest_len_range.clone().collect::<Vec<usize>>(),
+    // );
+
+    scan_forest_tree_views(&mut forest);
 
     print_forest(&forest.clone());
+
     println!(
         "{:?}",
         forest
@@ -110,7 +122,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             )
             .sum::<i32>()
     );
-    // println!("{:?}", test);
+    println!(
+        "{:?}",
+        forest.iter().flatten().map(|x| x.scenic_score).max()
+    );
 
     Ok(())
 }
@@ -118,25 +133,85 @@ fn print_forest(forest: &Vec<Vec<Tree>>) {
     let test = forest.iter().map(|treeline| {
         treeline
             .iter()
+            // .map(|tree| {
+            //     if tree.processing {
+            //         "."
+            //     } else if tree.visible.top
+            //         | tree.visible.bottom
+            //         | tree.visible.left
+            //         | tree.visible.right
+            //     {
+            //         "1"
+            //     } else {
+            //         "0"
+            //     }
+            // })
             .map(|tree| {
-                if tree.processing {
-                    "."
-                } else if tree.visible.top
-                    | tree.visible.bottom
-                    | tree.visible.left
-                    | tree.visible.right
-                {
-                    "1"
-                } else {
-                    "0"
-                }
+                format!(
+                    "\u{1b}[{}m{}\u{001b}[0m",
+                    tree.processing as usize, tree.height
+                )
             })
-            .collect::<Vec<&str>>()
+            .collect::<Vec<String>>()
             .join::<&str>("")
     });
 
     println!("{}\n", test.collect::<Vec<String>>().join("\n"));
 }
+
+fn scan_forest_tree_views(forest: &mut Vec<Vec<Tree>>) {
+    for x in 0..forest.len() {
+        for y in 0..forest.len() {
+            forest[x][y].processing = ProcessingColorCode::Red;
+            println!("START {:?}", forest[x][y]);
+            println!("TREE POS {x}, {y}");
+            for (dx, dy) in [(1, 0), (0, 1), (0, -1), (-1, 0)] {
+                let mut counter = 1;
+                loop {
+                    let (xx, yy) = (x as i32 + dx * counter, y as i32 + dy * counter);
+                    println!("\nVIEW POS {xx}, {yy}, counter: {counter}");
+                    if *DEBUG {
+                        io::stdin().read_line(&mut String::new());
+                    }
+                    if x == 0 || y == 0 || x == forest.len() || y == forest.len() {
+                        println!("Instant border");
+                        forest[x][y].scenic_score = 0;
+                        println!("Current total: {}", forest[x][y].scenic_score);
+                        break;
+                    }
+                    if xx <= 0
+                        || xx >= forest.len() as i32 - 1
+                        || yy <= 0
+                        || yy >= forest.len() as i32 - 1
+                    {
+                        forest[x][y].scenic_score *= counter;
+
+                        println!("Border! View score: {counter}");
+                        println!("Current total: {}", forest[x][y].scenic_score);
+                        break;
+                    }
+                    forest[xx as usize][yy as usize].processing = ProcessingColorCode::Blue;
+                    if *DEBUG {
+                        print_forest(&forest.clone());
+                    }
+                    if forest[xx as usize][yy as usize].height >= forest[x][y].height {
+                        forest[x][y].scenic_score *= counter;
+                        forest[xx as usize][yy as usize].processing = ProcessingColorCode::None;
+                        println!("A tree! View score: {counter}");
+                        println!("Current total: {}", forest[x][y].scenic_score);
+                        break;
+                    }
+                    counter += 1;
+                    forest[xx as usize][yy as usize].processing = ProcessingColorCode::None;
+                }
+            }
+            println!("FINISH {:?}", forest[x][y]);
+            forest[x][y].processing = ProcessingColorCode::None;
+            println!();
+        }
+    }
+}
+
 fn scan_forest_side(
     forest: &mut Vec<Vec<Tree>>,
     dir: Direction,
@@ -159,7 +234,7 @@ fn scan_forest_side(
             //     current_tree.height, top_tree_height
             // );
             // println!("{x} {y}");
-            current_tree.processing = true;
+            current_tree.processing = ProcessingColorCode::Blue;
             if current_tree.height > top_tree_height || top_tree_height == -1 {
                 // println!("Visible!");
                 match dir {
@@ -175,8 +250,8 @@ fn scan_forest_side(
                 print_forest(&forest.clone());
             }
             match dir.axis() {
-                Axis::Horizontal => forest[*x][*y].processing = false,
-                Axis::Vertical => forest[*y][*x].processing = false,
+                Axis::Horizontal => forest[*x][*y].processing = ProcessingColorCode::None,
+                Axis::Vertical => forest[*y][*x].processing = ProcessingColorCode::None,
             };
             if *DEBUG {
                 // io::stdin().read_line(&mut answer);
