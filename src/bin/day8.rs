@@ -1,4 +1,4 @@
-// okaaay this is taught me a bit, the code was getting ugly really fast
+// okaaay this taught me a bit, the code was getting ugly really fast
 // and I had to refactor it over and over
 // had to write some visualising code to understand and debug
 #![feature(array_chunks)]
